@@ -1,0 +1,22 @@
+[package]
+name = "candle-flash-attn-v1"
+description = "Flash attention V1 layer for the candle ML framework."
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace  = true
+license.workspace = true
+
+[dependencies]
+candle = { workspace = true }
+half = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+num_cpus = { workspace = true }
+rayon = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+candle-nn = { workspace = true }

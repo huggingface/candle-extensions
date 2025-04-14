@@ -1,0 +1,22 @@
+[package]
+name = "candle-rotary"
+version = "0.0.1"
+edition = "2021"
+
+description = "Rotary layer for the candle ML framework."
+keywords = ["tensor", "machine-learning"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+
+[dependencies]
+candle = { workspace = true }
+half = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+bindgen_cuda = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+candle-nn = { workspace = true }
