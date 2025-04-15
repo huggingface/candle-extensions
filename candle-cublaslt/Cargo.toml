@@ -1,0 +1,16 @@
+[package]
+name = "candle-cublaslt"
+description = "CUBLASLt gemm for the candle ML framework."
+homepage = "https://github.com/huggingface/candle-extensions/candle-cublaslt"
+documentation = "https://docs.rs/candle-cublaslt"
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace  = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+candle = { workspace=true } 
+cudarc = { workspace = true, features = [ "cublaslt", "f16" ]}
+half = { workspace = true }

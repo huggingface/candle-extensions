@@ -131,6 +131,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "candle-cublaslt"
+version = "0.0.1"
+dependencies = [
+ "candle-core",
+ "cudarc",
+ "half",
+]
+
+[[package]]
 name = "candle-flash-attn-v1"
 version = "0.0.1"
 dependencies = [

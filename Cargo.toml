@@ -2,7 +2,8 @@
 members = [
     "candle-layer-norm", 
     "candle-rotary", 
-    "candle-flash-attn-v1"
+    "candle-flash-attn-v1",
+    "candle-cublaslt",
 ]
 resolver = "2"
 
@@ -19,6 +20,7 @@ repository = "https://github.com/huggingface/candle-extensions/"
 [workspace.dependencies]
 # Runtime
 candle = { version = "0.*", package = "candle-core", features = ["cuda"]}
+cudarc = { version = "0.*" }
 half = { version = "2.3.1", features = ["num-traits"] }
 # Dev
 candle-nn = { version = "0.*", features = ["cuda"] }
