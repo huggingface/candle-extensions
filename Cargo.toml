@@ -14,6 +14,7 @@ keywords = ["tensor", "machine-learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/huggingface/candle-extensions/"
 
 [workspace.dependencies]
 # Runtime

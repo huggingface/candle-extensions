@@ -1,13 +1,13 @@
 [package]
 name = "candle-rotary"
-version = "0.0.1"
-edition = "2021"
-
 description = "Rotary layer for the candle ML framework."
-keywords = ["tensor", "machine-learning"]
-categories = ["science"]
-license = "MIT OR Apache-2.0"
 readme = "README.md"
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace  = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 candle = { workspace = true }

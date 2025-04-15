@@ -1,11 +1,14 @@
 [package]
 name = "candle-layer-norm"
-version = "0.0.1"
-edition = "2021"
-license = "BSD-3-Clause"
 description = "Layer Norm layer for the candle ML framework."
 homepage = "https://github.com/huggingface/candle-extensions/candle-layer-norm/"
 documentation = "https://docs.rs/candle-layer-norm"
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace  = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 candle = { version = "0.*", package = "candle-core", features = ["cuda"] }

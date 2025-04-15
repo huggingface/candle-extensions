@@ -1,12 +1,15 @@
 [package]
 name = "candle-flash-attn-v1"
 description = "Flash attention V1 layer for the candle ML framework."
+homepage = "https://github.com/huggingface/candle-extensions/candle-flash-attn-v1/"
+documentation = "https://docs.rs/candle-flash-attn-v1"
 readme = "README.md"
 version.workspace = true
 edition.workspace = true
 keywords.workspace = true
 categories.workspace  = true
 license.workspace = true
+repository.workspace = true
 
 [dependencies]
 candle = { workspace = true }
