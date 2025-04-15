@@ -41,6 +41,17 @@ fn main() -> Result<()> {
         .build_global()
         .unwrap();
 
+    // Remove unecessary directories from cutlass, important for packaging.
+    // Done here instead of in submodule for easier rebasing.
+    let root = PathBuf::from_str(".").unwrap();
+    let root = root.join("cutlass");
+    for name in [
+        "docs", "media", "test", "examples", "python", "tools", ".github", "cmake",
+    ] {
+        let dir = root.join(name);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
     println!("cargo:rerun-if-changed=build.rs");
 
     let paths = read_dir_recursively(&PathBuf::from_str("kernels")?)?;
