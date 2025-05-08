@@ -14,7 +14,7 @@ pub struct CublasLt(Arc<CudaBlasLT>);
 
 impl CublasLt {
     pub fn new(device: &Device) -> Result<Self> {
-        let dev = match &*device {
+        let dev = match device {
             Device::Cuda(d) => d,
             _ => candle::bail!("`device` must be a `cuda` device"),
         };
@@ -401,6 +401,7 @@ impl candle::CustomOp3 for CublasLTMatmul {
 /// * `cublaslt` - CublasLt handle
 ///
 /// The resulting tensor is of shape NxM
+#[allow(clippy::too_many_arguments)]
 pub fn fused_matmul(
     a: &Tensor,
     b: &Tensor,
@@ -420,9 +421,9 @@ pub fn fused_matmul(
     };
 
     if let Some(bias) = bias {
-        a.apply_op3(&b, &bias, op)
+        a.apply_op3(b, bias, op)
     } else {
-        a.apply_op2(&b, op)
+        a.apply_op2(b, op)
     }
 }
 
@@ -830,6 +831,7 @@ impl candle::CustomOp3 for CublasLTBatchMatmul {
 /// * `cublaslt` - CublasLt handle
 ///
 /// The resulting tensor is of shape NxM
+#[allow(clippy::too_many_arguments)]
 pub fn fused_batch_matmul(
     a: &Tensor,
     b: &Tensor,
@@ -849,9 +851,9 @@ pub fn fused_batch_matmul(
     };
 
     if let Some(bias) = bias {
-        a.apply_op3(&b, &bias, op)
+        a.apply_op3(b, bias, op)
     } else {
-        a.apply_op2(&b, op)
+        a.apply_op2(b, op)
     }
 }
 
