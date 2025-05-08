@@ -142,7 +142,7 @@ pub fn cos_sin(length: usize, inv_freqs: &Tensor, dtype: DType) -> Result<(Tenso
     let t = Tensor::arange(0u32, length as u32, inv_freqs.device())?
         .to_dtype(DType::F32)?
         .reshape((length, 1))?;
-    let freqs = t.matmul(&inv_freqs)?;
+    let freqs = t.matmul(inv_freqs)?;
     let cos = freqs.cos()?.to_dtype(dtype)?;
     let sin = freqs.sin()?.to_dtype(dtype)?;
     Ok((cos, sin))

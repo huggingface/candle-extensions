@@ -20,11 +20,14 @@ fn main() -> Result<()> {
         }
         Ok(build_dir) => {
             let path = PathBuf::from(build_dir);
-            path.canonicalize().expect(&format!(
-                "Directory doesn't exists: {} (the current directory is {})",
-                &path.display(),
-                std::env::current_dir()?.display()
-            ))
+            let current_dir = std::env::current_dir()?;
+            path.canonicalize().unwrap_or_else(|_| {
+                panic!(
+                    "Directory doesn't exists: {} (the current directory is {})",
+                    &path.display(),
+                    current_dir.display()
+                )
+            })
         }
     };
 
