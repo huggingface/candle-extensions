@@ -4,6 +4,7 @@ members = [
     "candle-rotary", 
     "candle-flash-attn-v1",
     "candle-cublaslt",
+    "candle-moe",
 ]
 resolver = "2"
 
