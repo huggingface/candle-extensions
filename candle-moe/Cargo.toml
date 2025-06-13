@@ -2,7 +2,6 @@
 name = "candle-moe"
 description = "fused MoE layer for the candle ML framework."
 homepage = "https://github.com/huggingface/candle-extensions/candle-moe/"
-documentation = "https://docs.rs/candle-moe"
 version.workspace = true
 edition.workspace = true
 keywords.workspace = true
@@ -13,13 +12,13 @@ repository.workspace = true
 [dependencies]
 candle = { version = "0.8", package = "candle-core", features = ["cuda"] }
 cudarc = { version = "0.13.3", features = ["cuda-12080"], default-features = false }
-half = { version = "2.3.1", features = ["num-traits"] }
+half = { workspace = true }
 
 [build-dependencies]
-anyhow = { version = "1", features = ["backtrace"] }
-bindgen_cuda = "0.1.5"
+anyhow = { workspace = true }
+bindgen_cuda = { workspace = true }
 
 [dev-dependencies]
-anyhow = { version = "1" }
+anyhow = { workspace = true }
 candle-nn = { version = "0.8", features = ["cuda"] }
 candle-transformers = { version = "0.8" }
