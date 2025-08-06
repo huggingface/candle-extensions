@@ -32,6 +32,8 @@ fn apply_rotary_<
         _ => candle::bail!("query must be a cuda tensor"),
     };
 
+    let stream = query.device().as_cuda_device().unwrap().cuda_stream();
+
     let (k, k_l) = key.storage_and_layout();
     let k = match &*k {
         Storage::Cuda(k) => k,
@@ -102,19 +104,21 @@ fn apply_rotary_<
     let query_stride = q_l.stride()[0];
     let key_stride = k_l.stride()[0];
 
-    let q_ptr = *q.device_ptr() as *const core::ffi::c_void;
-    let k_ptr = *k.device_ptr() as *const core::ffi::c_void;
-    let cc_ptr = *cc.device_ptr() as *const core::ffi::c_void;
-    let sc_ptr = *sc.device_ptr() as *const core::ffi::c_void;
+    //as *const core::ffi::c_void
+
+    let (q_ptr, _q_ptr_guard) = q.device_ptr(&stream);
+    let (k_ptr, _k_ptr_guard) = k.device_ptr(&stream);
+    let (cc_ptr, _cc_ptr_guard) = cc.device_ptr(&stream);
+    let (sc_ptr, _sc_ptr_guard) = sc.device_ptr(&stream);
 
     let neox = if is_neox { 1 } else { 0 };
 
     unsafe {
         ffi::rotary_embedding(
-            q_ptr,
-            k_ptr,
-            cc_ptr,
-            sc_ptr,
+            q_ptr as *const core::ffi::c_void,
+            k_ptr as *const core::ffi::c_void,
+            cc_ptr as *const core::ffi::c_void,
+            sc_ptr as *const core::ffi::c_void,
             neox,
             head_size as c_int,
             num_tokens as c_long,

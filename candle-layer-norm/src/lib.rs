@@ -1,6 +1,7 @@
 mod ffi;
 
 use candle::backend::BackendStorage;
+use candle::cuda::cudarc::driver::SyncOnDrop;
 use candle::cuda_backend::cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
 use candle::cuda_backend::cudarc::driver::DevicePtr;
 use candle::cuda_backend::WrapErr;
@@ -41,6 +42,7 @@ impl LayerNorm {
     ) -> Result<(candle::CudaStorage, Shape)> {
         // Assume all tensors are on the same device and take device of x
         let dev = x.device();
+        let stream = dev.cuda_stream();
 
         // Get internal layer norm type id for the given dtype
         let layer_norm_type = layer_norm_internal_type(x.dtype())?;
@@ -96,30 +98,34 @@ impl LayerNorm {
         let is_rms_norm = if self.is_rms_norm { 1 } else { 0 };
 
         // If beta is et, get ids device pointer
-        let b_ptr = if let Some(beta) = &self.beta {
-            // Make sure that beta is a CUDA tensor and get the underlying storage
-            let (b, b_l) = beta.storage_and_layout();
-            let b = match &*b {
-                Storage::Cuda(b) => b,
-                _ => candle::bail!("gamma must be a cuda tensor"),
+        let beta_ptr: Option<(*const std::ffi::c_void, SyncOnDrop<'_>)> =
+            if let Some(beta) = &self.beta {
+                // Make sure that beta is a CUDA tensor and get the underlying storage
+                let (b, b_l) = beta.storage_and_layout();
+                let (s, p, g) = match &*b {
+                    Storage::Cuda(b) => {
+                        let b = b.as_cuda_slice::<T>()?;
+                        let b_slice = b.slice(b_l.start_offset()..);
+                        let b_stride = b_l.stride();
+                        let b_rank = b_stride.len();
+
+                        if b_stride[b_rank - 1] != 1 {
+                            candle::bail!("the last dim of b must be contiguous {b_stride:?}")
+                        }
+
+                        let (p, g) = b_slice.device_ptr(&stream);
+                        (b_slice, p, g)
+                    }
+                    _ => candle::bail!("gamma must be a cuda tensor"),
+                };
+
+                Some((p as *const std::ffi::c_void, g))
+            } else {
+                None
             };
 
-            let b = b.as_cuda_slice::<T>()?;
-            let b = b.slice(b_l.start_offset()..);
-
-            let b_stride = b_l.stride();
-            let b_rank = b_stride.len();
-
-            if b_stride[b_rank - 1] != 1 {
-                candle::bail!("the last dim of b must be contiguous {b_stride:?}")
-            }
-            *b.device_ptr() as *const core::ffi::c_void
-        } else {
-            ptr::null() as *const std::ffi::c_void
-        };
-
         // If residual is set, get its device pointer
-        let r_ptr = if let (Some(r), Some(r_l)) = (r, r_l) {
+        let (r_ptr, _r_ptr_guard) = if let (Some(r), Some(r_l)) = (r, r_l) {
             // Check shape
             let expected_shape = x_l.shape().dims2()?;
             if r_l.shape().dims2()? != expected_shape {
@@ -139,46 +145,52 @@ impl LayerNorm {
             if r_stride[r_rank - 1] != 1 {
                 candle::bail!("the last dim of r must be contiguous {r_stride:?}")
             }
-            *r.device_ptr() as *const std::ffi::c_void
+
+            let (p, g) = r.device_ptr(&stream); // as *const std::ffi::c_void
+
+            (p as *const std::ffi::c_void, Some(g))
         } else {
-            ptr::null() as *const std::ffi::c_void
+            (ptr::null() as *const std::ffi::c_void, None)
         };
 
         // We will store the results of the residual add next to the main results
         // so out has the same shape as inp * 2
         let out_shape = Shape::from((rows * 2, cols));
 
-        let out = unsafe { dev.alloc::<T>(out_shape.elem_count()) }.w()?;
+        let out = unsafe { dev.alloc::<T>(out_shape.elem_count()) }?;
         let dst = out.slice(..rows * cols);
         let dst_add = out.slice(rows * cols..);
 
         // Alloc internal buffers
-        let mu = unsafe { dev.alloc::<f32>(rows) }.w()?;
-        let rsigma = unsafe { dev.alloc::<f32>(rows) }.w()?;
+        let mu = unsafe { dev.alloc::<f32>(rows) }?;
+        let rsigma = unsafe { dev.alloc::<f32>(rows) }?;
 
         // Get cuda device pointers from cuda slices
-        let x_ptr = *x.device_ptr() as *const core::ffi::c_void;
-        let g_ptr = *g.device_ptr() as *const core::ffi::c_void;
-        let dst_add_ptr = *dst_add.device_ptr() as *const core::ffi::c_void;
-        let dst_ptr = *dst.device_ptr() as *const core::ffi::c_void;
-        let mu_ptr = *mu.device_ptr() as *const core::ffi::c_void;
-        let rsigma_ptr = *rsigma.device_ptr() as *const core::ffi::c_void;
+        let (x_ptr, _x_ptr_guard) = x.device_ptr(&stream); // as *const core::ffi::c_void
+        let (g_ptr, _g_ptr_guard) = g.device_ptr(&stream); // as *const core::ffi::c_void
+        let (dst_add_ptr, _dst_add_ptr_guard) = dst_add.device_ptr(&stream); // as *const core::ffi::c_void
+        let (dst_ptr, _dst_ptr_guard) = dst.device_ptr(&stream); // as *const core::ffi::c_void
+        let (mu_ptr, _mu_ptr_guard) = mu.device_ptr(&stream); // as *const core::ffi::c_void
+        let (rsigma_ptr, _rsigma_ptr_guard) = rsigma.device_ptr(&stream); // as *const core::ffi::c_void
 
-        let multi_processors_count = dev
+        let multi_processors_count = stream
+            .context()
             .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
             .unwrap();
 
         unsafe {
             // Launch Kernel
             ffi::run_ln(
-                x_ptr,
-                r_ptr,
-                g_ptr,
-                b_ptr,
-                dst_add_ptr,
-                dst_ptr,
-                mu_ptr,
-                rsigma_ptr,
+                x_ptr as *const std::ffi::c_void,
+                r_ptr as *const std::ffi::c_void,
+                g_ptr as *const std::ffi::c_void,
+                beta_ptr
+                    .map(|(p, _)| p as *const std::ffi::c_void)
+                    .unwrap_or(ptr::null()),
+                dst_add_ptr as *const std::ffi::c_void,
+                dst_ptr as *const std::ffi::c_void,
+                mu_ptr as *const std::ffi::c_void,
+                rsigma_ptr as *const std::ffi::c_void,
                 self.epsilon,
                 cols_rounded as u32,
                 rows as u32,
