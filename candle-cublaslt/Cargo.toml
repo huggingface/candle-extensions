@@ -6,11 +6,12 @@ documentation = "https://docs.rs/candle-cublaslt"
 version.workspace = true
 edition.workspace = true
 keywords.workspace = true
-categories.workspace  = true
+categories.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
-candle = { workspace=true } 
-cudarc = { workspace = true, features = [ "cublaslt", "f16" ]}
+candle = { workspace = true }
+cudarc = { workspace = true, features = ["cublaslt", "f16", "f8"] }
 half = { workspace = true }
+float8 = { workspace = true }

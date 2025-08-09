@@ -6,15 +6,15 @@ documentation = "https://docs.rs/candle-layer-norm"
 version.workspace = true
 edition.workspace = true
 keywords.workspace = true
-categories.workspace  = true
+categories.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
-candle = { version = "0.*", package = "candle-core", features = ["cuda"] }
-half = { version = "2.3.1", features = ["num-traits"] }
+candle = { workspace = true }
+half = { workspace = true }
 
 [build-dependencies]
-anyhow = { version = "1", features = ["backtrace"] }
+anyhow = { workspace = true }
 num_cpus = "1.15.0"
 rayon = "1.7.0"
