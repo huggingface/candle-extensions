@@ -1,0 +1,23 @@
+[package]
+name = "candle-moe"
+description = "fused MoE layer for the candle ML framework."
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace  = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+candle = { workspace = true }
+half = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+bindgen_cuda = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+candle-nn = { workspace = true }
+candle-transformer = { workspace = true }

@@ -4,6 +4,7 @@ members = [
     "candle-rotary", 
     "candle-flash-attn-v1",
     "candle-cublaslt",
+    "candle-moe",
 ]
 resolver = "2"
 
@@ -23,7 +24,8 @@ candle = { version = "0.*", package = "candle-core", features = ["cuda"]}
 cudarc = { version = "0.*" }
 half = { version = "2.3.1", features = ["num-traits"] }
 # Dev
-candle-nn = { version = "0.*", features = ["cuda"] }
+candle-nn = { version = "0.8", features = ["cuda"] }
+candle-transformers = { version = "0.8" }
 # Build
 anyhow = { version = "1", features = ["backtrace"] }
 bindgen_cuda = "0.1.1"
