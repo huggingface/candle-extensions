@@ -32,6 +32,9 @@ fn apply_rotary_<
         _ => candle::bail!("query must be a cuda tensor"),
     };
 
+    // Get the CUDA stream from the device
+    let stream = q.device.cuda_stream();
+
     let (k, k_l) = key.storage_and_layout();
     let k = match &*k {
         Storage::Cuda(k) => k,
@@ -102,10 +105,14 @@ fn apply_rotary_<
     let query_stride = q_l.stride()[0];
     let key_stride = k_l.stride()[0];
 
-    let q_ptr = *q.device_ptr() as *const core::ffi::c_void;
-    let k_ptr = *k.device_ptr() as *const core::ffi::c_void;
-    let cc_ptr = *cc.device_ptr() as *const core::ffi::c_void;
-    let sc_ptr = *sc.device_ptr() as *const core::ffi::c_void;
+    let (q_ptr, _q_guard) = q.device_ptr(&stream);
+    let q_ptr = q_ptr as *const core::ffi::c_void;
+    let (k_ptr, _k_guard) = k.device_ptr(&stream);
+    let k_ptr = k_ptr as *const core::ffi::c_void;
+    let (cc_ptr, _cc_guard) = cc.device_ptr(&stream);
+    let cc_ptr = cc_ptr as *const core::ffi::c_void;
+    let (sc_ptr, _sc_guard) = sc.device_ptr(&stream);
+    let sc_ptr = sc_ptr as *const core::ffi::c_void;
 
     let neox = if is_neox { 1 } else { 0 };
 

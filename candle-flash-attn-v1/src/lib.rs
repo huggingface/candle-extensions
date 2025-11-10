@@ -122,17 +122,16 @@ impl FlashAttnVarLen {
         let batch_size = nseqlens_q - 1;
 
         let elem_count = out_shape.elem_count();
-        let dst = unsafe { dev.alloc::<T>(elem_count) }.w()?;
+        let dst = unsafe { dev.alloc::<T>(elem_count) }?;
         let softmax_lse = dev
-            .alloc_zeros::<f32>(batch_size * num_heads * self.max_seqlen_q)
-            .w()?;
+            .alloc_zeros::<f32>(batch_size * num_heads * self.max_seqlen_q)?;
 
         let blocksize_c = if head_size > 64 { 128 } else { 256 };
         let max_seqlen_k_rounded = round_multiple(self.max_seqlen_k, blocksize_c);
         let max_seqlen_q_rounded = round_multiple(self.max_seqlen_q, 16);
 
         let dst_temp = if max_seqlen_k_rounded > blocksize_c {
-            Some(unsafe { dev.alloc::<f32>(total_q * num_heads * head_size) }.w()?)
+            Some(unsafe { dev.alloc::<f32>(total_q * num_heads * head_size) }?)
         } else {
             None
         };
@@ -141,22 +140,33 @@ impl FlashAttnVarLen {
         let is_bf16 = if is_bf16 { 1 } else { 0 };
 
         let multi_processor_count = dev
+            .cuda_stream()
+            .context()
             .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
             .w()?;
 
+        let stream = dev.cuda_stream();
         unsafe {
-            let q_ptr = *q.device_ptr() as *const core::ffi::c_void;
-            let k_ptr = *k.device_ptr() as *const core::ffi::c_void;
-            let v_ptr = *v.device_ptr() as *const core::ffi::c_void;
-            let dst_ptr = *dst.device_ptr() as *const core::ffi::c_void;
+            let (q_ptr, _q_lock) = q.device_ptr(&stream);
+            let q_ptr = q_ptr as *const core::ffi::c_void;
+            let (k_ptr, _k_lock) = k.device_ptr(&stream);
+            let k_ptr = k_ptr as *const core::ffi::c_void;
+            let (v_ptr, _v_lock) = v.device_ptr(&stream);
+            let v_ptr = v_ptr as *const core::ffi::c_void;
+            let (dst_ptr, _dst_lock) = dst.device_ptr(&stream);
+            let dst_ptr = dst_ptr as *const core::ffi::c_void;
             let dst_tmp_ptr = if let Some(slice) = &dst_temp {
-                *slice.device_ptr() as *const core::ffi::c_void
+                let (ptr, _lock) = slice.device_ptr(&stream);
+                ptr as *const core::ffi::c_void
             } else {
                 ptr::null()
             };
-            let softmax_lse_ptr = *softmax_lse.device_ptr() as *const core::ffi::c_void;
-            let seqlens_q_ptr = *seqlens_q.device_ptr() as *const core::ffi::c_int;
-            let seqlens_k_ptr = *seqlens_k.device_ptr() as *const core::ffi::c_int;
+            let (softmax_lse_ptr, _softmax_lse_lock) = softmax_lse.device_ptr(&stream);
+            let softmax_lse_ptr = softmax_lse_ptr as *const core::ffi::c_void;
+            let (seqlens_q_ptr, _seqlens_q_lock) = seqlens_q.device_ptr(&stream);
+            let seqlens_q_ptr = seqlens_q_ptr as *const core::ffi::c_int;
+            let (seqlens_k_ptr, _seqlens_k_lock) = seqlens_k.device_ptr(&stream);
+            let seqlens_k_ptr = seqlens_k_ptr as *const core::ffi::c_int;
             ffi::run_mha(
                 q_ptr,
                 k_ptr,
