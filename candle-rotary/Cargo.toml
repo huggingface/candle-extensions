@@ -5,13 +5,18 @@ readme = "README.md"
 version.workspace = true
 edition.workspace = true
 keywords.workspace = true
-categories.workspace  = true
+categories.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
 candle = { workspace = true }
 half = { workspace = true }
+
+[features]
+default = ["dynamic-linking"]
+dynamic-linking = ["candle/cuda-dynamic-linking"]
+static-linking = ["candle/cuda-static-linking"]
 
 [build-dependencies]
 anyhow = { workspace = true }

@@ -11,6 +11,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-candle = { workspace=true } 
-cudarc = { workspace = true, features = [ "cublaslt", "f16" ]}
+candle = { workspace = true }
+cudarc = { workspace = true, features = ["cublaslt", "f16"], default-features = false }
 half = { workspace = true }
+
+[features]
+default = ["dynamic-linking"]
+dynamic-linking = ["cudarc/dynamic-linking", "candle/cuda-dynamic-linking"]
+static-linking = ["cudarc/static-linking", "candle/cuda-static-linking"]

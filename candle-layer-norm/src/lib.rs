@@ -3,7 +3,6 @@ mod ffi;
 use candle::backend::BackendStorage;
 use candle::cuda_backend::cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
 use candle::cuda_backend::cudarc::driver::DevicePtr;
-use candle::cuda_backend::WrapErr;
 use candle::{CpuStorage, DType, Layout, Result, Shape, Storage, Tensor};
 use half::{bf16, f16};
 use std::ptr;
@@ -41,6 +40,7 @@ impl LayerNorm {
     ) -> Result<(candle::CudaStorage, Shape)> {
         // Assume all tensors are on the same device and take device of x
         let dev = x.device();
+        let stream = dev.cuda_stream();
 
         // Get internal layer norm type id for the given dtype
         let layer_norm_type = layer_norm_internal_type(x.dtype())?;
@@ -113,7 +113,8 @@ impl LayerNorm {
             if b_stride[b_rank - 1] != 1 {
                 candle::bail!("the last dim of b must be contiguous {b_stride:?}")
             }
-            *b.device_ptr() as *const core::ffi::c_void
+            let b_ptr_raw = b.device_ptr(&stream).0;
+            b_ptr_raw as *const core::ffi::c_void
         } else {
             ptr::null() as *const std::ffi::c_void
         };
@@ -139,7 +140,8 @@ impl LayerNorm {
             if r_stride[r_rank - 1] != 1 {
                 candle::bail!("the last dim of r must be contiguous {r_stride:?}")
             }
-            *r.device_ptr() as *const std::ffi::c_void
+            let r_ptr_raw = r.device_ptr(&stream).0;
+            r_ptr_raw as *const std::ffi::c_void
         } else {
             ptr::null() as *const std::ffi::c_void
         };
@@ -148,23 +150,24 @@ impl LayerNorm {
         // so out has the same shape as inp * 2
         let out_shape = Shape::from((rows * 2, cols));
 
-        let out = unsafe { dev.alloc::<T>(out_shape.elem_count()) }.w()?;
+        let out = unsafe { dev.alloc::<T>(out_shape.elem_count()) }?;
         let dst = out.slice(..rows * cols);
         let dst_add = out.slice(rows * cols..);
 
         // Alloc internal buffers
-        let mu = unsafe { dev.alloc::<f32>(rows) }.w()?;
-        let rsigma = unsafe { dev.alloc::<f32>(rows) }.w()?;
+        let mu = unsafe { dev.alloc::<f32>(rows) }?;
+        let rsigma = unsafe { dev.alloc::<f32>(rows) }?;
 
         // Get cuda device pointers from cuda slices
-        let x_ptr = *x.device_ptr() as *const core::ffi::c_void;
-        let g_ptr = *g.device_ptr() as *const core::ffi::c_void;
-        let dst_add_ptr = *dst_add.device_ptr() as *const core::ffi::c_void;
-        let dst_ptr = *dst.device_ptr() as *const core::ffi::c_void;
-        let mu_ptr = *mu.device_ptr() as *const core::ffi::c_void;
-        let rsigma_ptr = *rsigma.device_ptr() as *const core::ffi::c_void;
+        let x_ptr = x.device_ptr(&stream).0 as *const core::ffi::c_void;
+        let g_ptr = g.device_ptr(&stream).0 as *const core::ffi::c_void;
+        let dst_add_ptr = dst_add.device_ptr(&stream).0 as *const core::ffi::c_void;
+        let dst_ptr = dst.device_ptr(&stream).0 as *const core::ffi::c_void;
+        let mu_ptr = mu.device_ptr(&stream).0 as *const core::ffi::c_void;
+        let rsigma_ptr = rsigma.device_ptr(&stream).0 as *const core::ffi::c_void;
 
-        let multi_processors_count = dev
+        let multi_processors_count = stream
+            .context()
             .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
             .unwrap();
 

@@ -15,6 +15,11 @@ repository.workspace = true
 candle = { workspace = true }
 half = { workspace = true }
 
+[features]
+default = ["dynamic-linking"]
+dynamic-linking = ["candle/cuda-dynamic-linking"]
+static-linking = ["candle/cuda-static-linking"]
+
 [build-dependencies]
 anyhow = { workspace = true }
 num_cpus = { workspace = true }

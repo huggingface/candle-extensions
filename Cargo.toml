@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "candle-layer-norm", 
-    "candle-rotary", 
+    "candle-layer-norm",
+    "candle-rotary",
     "candle-flash-attn-v1",
     "candle-cublaslt",
 ]
@@ -19,13 +19,17 @@ repository = "https://github.com/huggingface/candle-extensions/"
 
 [workspace.dependencies]
 # Runtime
-candle = { version = "0.*", package = "candle-core", features = ["cuda"]}
-cudarc = { version = "0.*" }
+candle = { version = "0.9.2", package = "candle-core", features = ["cuda-enabled"] }
+cudarc = { version = "0.19.1", features = ["cuda-version-from-build-system"], default-features = false }
 half = { version = "2.3.1", features = ["num-traits"] }
 # Dev
-candle-nn = { version = "0.*", features = ["cuda"] }
+candle-nn = { version = "0.*", features = ["cuda-enabled"] }
 # Build
 anyhow = { version = "1", features = ["backtrace"] }
 bindgen_cuda = "0.1.1"
 num_cpus = "1.15.0"
 rayon = "1.7.0"
+
+[patch.crates-io]
+candle = { git = "https://github.com/huggingface/candle", branch = "no-default-linking", package = "candle-core" }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "no-default-linking" }

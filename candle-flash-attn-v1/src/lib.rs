@@ -3,7 +3,6 @@ mod ffi;
 use candle::backend::BackendStorage;
 use candle::cuda_backend::cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
 use candle::cuda_backend::cudarc::driver::DevicePtr;
-use candle::cuda_backend::WrapErr;
 use candle::{CpuStorage, Layout, Result, Shape, Tensor};
 use half::{bf16, f16};
 use std::ptr;
@@ -122,41 +121,43 @@ impl FlashAttnVarLen {
         let batch_size = nseqlens_q - 1;
 
         let elem_count = out_shape.elem_count();
-        let dst = unsafe { dev.alloc::<T>(elem_count) }.w()?;
+        let dst = unsafe { dev.alloc::<T>(elem_count) }?;
         let softmax_lse = dev
-            .alloc_zeros::<f32>(batch_size * num_heads * self.max_seqlen_q)
-            .w()?;
+            .alloc_zeros::<f32>(batch_size * num_heads * self.max_seqlen_q)?;
 
         let blocksize_c = if head_size > 64 { 128 } else { 256 };
         let max_seqlen_k_rounded = round_multiple(self.max_seqlen_k, blocksize_c);
         let max_seqlen_q_rounded = round_multiple(self.max_seqlen_q, 16);
 
-        let dst_temp = if max_seqlen_k_rounded > blocksize_c {
-            Some(unsafe { dev.alloc::<f32>(total_q * num_heads * head_size) }.w()?)
-        } else {
-            None
-        };
+        let dst_temp: Option<candle::cuda_backend::cudarc::driver::CudaSlice<f32>> =
+            if max_seqlen_k_rounded > blocksize_c {
+                Some(unsafe { dev.alloc::<f32>(total_q * num_heads * head_size) }?)
+            } else {
+                None
+            };
 
         let causal = if self.causal { 1 } else { 0 };
         let is_bf16 = if is_bf16 { 1 } else { 0 };
 
-        let multi_processor_count = dev
+        let stream = dev.cuda_stream();
+        let multi_processor_count = stream
+            .context()
             .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
-            .w()?;
+            .unwrap();
 
         unsafe {
-            let q_ptr = *q.device_ptr() as *const core::ffi::c_void;
-            let k_ptr = *k.device_ptr() as *const core::ffi::c_void;
-            let v_ptr = *v.device_ptr() as *const core::ffi::c_void;
-            let dst_ptr = *dst.device_ptr() as *const core::ffi::c_void;
+            let q_ptr = q.device_ptr(&stream).0 as *const core::ffi::c_void;
+            let k_ptr = k.device_ptr(&stream).0 as *const core::ffi::c_void;
+            let v_ptr = v.device_ptr(&stream).0 as *const core::ffi::c_void;
+            let dst_ptr = dst.device_ptr(&stream).0 as *const core::ffi::c_void;
             let dst_tmp_ptr = if let Some(slice) = &dst_temp {
-                *slice.device_ptr() as *const core::ffi::c_void
+                slice.device_ptr(&stream).0 as *const core::ffi::c_void
             } else {
                 ptr::null()
             };
-            let softmax_lse_ptr = *softmax_lse.device_ptr() as *const core::ffi::c_void;
-            let seqlens_q_ptr = *seqlens_q.device_ptr() as *const core::ffi::c_int;
-            let seqlens_k_ptr = *seqlens_k.device_ptr() as *const core::ffi::c_int;
+            let softmax_lse_ptr = softmax_lse.device_ptr(&stream).0 as *const core::ffi::c_void;
+            let seqlens_q_ptr = seqlens_q.device_ptr(&stream).0 as *const core::ffi::c_int;
+            let seqlens_k_ptr = seqlens_k.device_ptr(&stream).0 as *const core::ffi::c_int;
             ffi::run_mha(
                 q_ptr,
                 k_ptr,
